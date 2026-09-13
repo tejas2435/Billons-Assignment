@@ -36,7 +36,8 @@ export default function TicketList() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page]);
+    // OLD: }, [page]);
+  }, [page, search, status, priority, sortBy, breached]);
 
   async function handleDelete(id) {
     await api(`/tickets/${id}`, { method: 'DELETE' });
