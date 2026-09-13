@@ -18,13 +18,17 @@ export default function TicketList() {
   const [sortBy, setSortBy] = useState('created_at');
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  // NEW: breached filter state
+  const [breached, setBreached] = useState(false);
   const [newSubject, setNewSubject] = useState('');
   const [newBody, setNewBody] = useState('');
   const [newPriority, setNewPriority] = useState('P3');
 
   useEffect(() => {
     setLoading(true);
+    // OLD: const params = new URLSearchParams({ page, search, status, priority, sortBy, order: 'desc' });
     const params = new URLSearchParams({ page, search, status, priority, sortBy, order: 'desc' });
+    if (breached) params.append('breached', 'true');
     api(`/tickets?${params.toString()}`)
       .then((data) => {
         setRows(data.rows);
@@ -100,6 +104,11 @@ export default function TicketList() {
           <option value="priority">Priority</option>
           <option value="status">Status</option>
         </select>
+        {/* NEW: SLA breached filter checkbox */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <input type="checkbox" checked={breached} onChange={(e) => setBreached(e.target.checked)} />
+          Breached only
+        </label>
       </div>
 
       {loading && <p>Loading…</p>}
@@ -116,7 +125,11 @@ export default function TicketList() {
             <tr key={i}>
               <td>{t.id}</td>
               <td><Link to={`/tickets/${t.id}`}>{t.subject}</Link></td>
-              <td>{t.status}</td>
+              {/* OLD: <td>{t.status}</td> */}
+              <td>
+                {t.status}
+                {t.is_breached ? <span style={{ backgroundColor: 'red', color: 'white', padding: '2px 4px', borderRadius: 4, marginLeft: 8, fontSize: '0.8em' }}>Breached</span> : null}
+              </td>
               <td>{t.priority}</td>
               <td>{t.assignee_name || '—'}</td>
               <td>{t.comment_count}</td>

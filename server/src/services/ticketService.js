@@ -9,7 +9,7 @@ const PAGE_SIZE = 20;
  * and sorting by any column the UI exposes in its dropdown.
  */
 // OLD: export async function listTickets({ orgId, page = 1, search = '', status, priority, sortBy = 'created_at', order = 'desc' }) {
-export async function listTickets({ orgId, page = 1, search = '', status, priority, sortBy = 'created_at', order = 'desc' }) {
+export async function listTickets({ orgId, page = 1, search = '', status, priority, sortBy = 'created_at', order = 'desc', req_breached }) {
   // NEW: Validate sortBy and order to prevent SQL injection
   const validSortColumns = ['id', 'subject', 'status', 'priority', 'created_at', 'updated_at'];
   const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
@@ -30,10 +30,23 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
     params.push(priority);
   }
 
+  if (req_breached === 'true') {
+    where.push(`
+      (
+        COALESCE(
+          (SELECT MIN(c.created_at) FROM comments c JOIN users a ON c.author_id = a.id WHERE c.ticket_id = t.id AND a.role IN ('agent', 'admin')),
+          NOW()
+        ) > DATE_ADD(t.created_at, INTERVAL CASE t.priority WHEN 'P1' THEN 4 WHEN 'P2' THEN 24 ELSE 72 END HOUR)
+      )
+    `);
+  }
+
   const whereSql = where.join(' AND ');
   // OLD: const offset = page * PAGE_SIZE;
   const offset = (page - 1) * PAGE_SIZE;
 
+  // OLD: 
+  /*
   const rows = await query(
     `SELECT t.id, t.subject, t.status, t.priority, t.created_at, t.updated_at,
             t.assignee_id, u.name AS assignee_name, r.name AS requester_name
@@ -41,17 +54,38 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
        LEFT JOIN users u ON u.id = t.assignee_id
        JOIN users r ON r.id = t.requester_id
       WHERE ${whereSql}
-      /* OLD: ORDER BY t.${sortBy} ${order} */
+      ORDER BY t.${safeSortBy} ${safeOrder}
+      LIMIT ? OFFSET ?`,
+    [...params, PAGE_SIZE, offset]
+  );
+  */
+  // NEW: SLA tracking and N+1 comment count embedded
+  const rows = await query(
+    `SELECT t.id, t.subject, t.status, t.priority, t.created_at, t.updated_at,
+            t.assignee_id, u.name AS assignee_name, r.name AS requester_name,
+            (SELECT COUNT(*) FROM comments WHERE ticket_id = t.id) AS comment_count,
+            (
+              COALESCE(
+                (SELECT MIN(c.created_at) FROM comments c JOIN users a ON c.author_id = a.id WHERE c.ticket_id = t.id AND a.role IN ('agent', 'admin')),
+                NOW()
+              ) > DATE_ADD(t.created_at, INTERVAL CASE t.priority WHEN 'P1' THEN 4 WHEN 'P2' THEN 24 ELSE 72 END HOUR)
+            ) AS is_breached
+       FROM tickets t
+       LEFT JOIN users u ON u.id = t.assignee_id
+       JOIN users r ON r.id = t.requester_id
+      WHERE ${whereSql}
       ORDER BY t.${safeSortBy} ${safeOrder}
       LIMIT ? OFFSET ?`,
     [...params, PAGE_SIZE, offset]
   );
 
+  /* OLD:
   // Attach the comment count each row needs for the list badge.
   for (const row of rows) {
     const [{ c }] = await query('SELECT COUNT(*) AS c FROM comments WHERE ticket_id = ?', [row.id]);
     row.comment_count = c;
   }
+  */
 
   const [{ total }] = await query(
     `SELECT COUNT(*) AS total FROM tickets t WHERE ${whereSql}`,
@@ -62,8 +96,24 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
 }
 
 export async function getTicketById(id) {
+  /* OLD:
   const rows = await query(
     `SELECT t.*, u.name AS assignee_name, r.name AS requester_name, r.email AS requester_email
+       FROM tickets t
+       LEFT JOIN users u ON u.id = t.assignee_id
+       JOIN users r ON r.id = t.requester_id
+      WHERE t.id = ?`,
+    [id]
+  );
+  */
+  const rows = await query(
+    `SELECT t.*, u.name AS assignee_name, r.name AS requester_name, r.email AS requester_email,
+            (
+              COALESCE(
+                (SELECT MIN(c.created_at) FROM comments c JOIN users a ON c.author_id = a.id WHERE c.ticket_id = t.id AND a.role IN ('agent', 'admin')),
+                NOW()
+              ) > DATE_ADD(t.created_at, INTERVAL CASE t.priority WHEN 'P1' THEN 4 WHEN 'P2' THEN 24 ELSE 72 END HOUR)
+            ) AS is_breached
        FROM tickets t
        LEFT JOIN users u ON u.id = t.assignee_id
        JOIN users r ON r.id = t.requester_id

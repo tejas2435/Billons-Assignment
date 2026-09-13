@@ -48,7 +48,10 @@ export default function TicketDetail() {
     <div className="ticket-detail">
       <h1>{ticket.subject}</h1>
       <p className="meta">
-        #{ticket.id} · {ticket.status} · {ticket.priority} ·
+        {/* OLD: #{ticket.id} · {ticket.status} · {ticket.priority} · */}
+        #{ticket.id} · {ticket.status} 
+        {ticket.is_breached ? <span style={{ backgroundColor: 'red', color: 'white', padding: '2px 4px', borderRadius: 4, margin: '0 8px', fontSize: '0.8em' }}>Breached</span> : null}
+        · {ticket.priority} ·
         requested by {ticket.requester_name} ({ticket.requester_email})
       </p>
       <p className="body">{ticket.body}</p>
