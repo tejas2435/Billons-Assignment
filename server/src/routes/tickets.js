@@ -31,9 +31,11 @@ router.get('/', requireAuth, async (req, res, next) => {
 router.get('/:id', requireAuth, async (req, res, next) => {
   try {
     const ticket = await getTicketById(Number(req.params.id));
-    if (!ticket) return res.status(404).json({ error: 'Not found' });
+    // OLD: if (!ticket) return res.status(404).json({ error: 'Not found' });
+    if (!ticket || ticket.org_id !== req.user.orgId) return res.status(404).json({ error: 'Not found' });
 
-    const comments = await listComments(ticket.id);
+    // OLD: const comments = await listComments(ticket.id);
+    const comments = await listComments(ticket.id, req.user.role);
     res.json({ ticket, comments });
   } catch (err) {
     next(err);
@@ -59,8 +61,14 @@ router.post('/', requireAuth, async (req, res, next) => {
   }
 });
 
-router.patch('/:id/assign', requireAuth, async (req, res, next) => {
+// OLD: router.patch('/:id/assign', requireAuth, async (req, res, next) => {
+router.patch('/:id/assign', requireAuth, requireRole('agent', 'admin'), async (req, res, next) => {
   try {
+    // NEW: IDOR check
+    const ticket = await getTicketById(Number(req.params.id));
+    if (!ticket || ticket.org_id !== req.user.orgId) return res.status(404).json({ error: 'Not found' });
+
+    // OLD: const result = await assignTicket(Number(req.params.id), req.user.id);
     const result = await assignTicket(Number(req.params.id), req.user.id);
     if (!result) return res.status(404).json({ error: 'Not found' });
     if (result.conflict) {
@@ -72,10 +80,12 @@ router.patch('/:id/assign', requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete('/:id', requireAuth, async (req, res, next) => {
+// OLD: router.delete('/:id', requireAuth, async (req, res, next) => {
+router.delete('/:id', requireAuth, requireRole('admin'), async (req, res, next) => {
   try {
     const ticket = await getTicketById(Number(req.params.id));
-    if (!ticket) return res.status(404).json({ error: 'Not found' });
+    // OLD: if (!ticket) return res.status(404).json({ error: 'Not found' });
+    if (!ticket || ticket.org_id !== req.user.orgId) return res.status(404).json({ error: 'Not found' });
     await deleteTicket(ticket.id);
     res.status(204).end();
   } catch (err) {

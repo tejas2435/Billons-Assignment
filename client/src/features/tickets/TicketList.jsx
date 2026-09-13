@@ -17,6 +17,10 @@ export default function TicketList() {
   const [priority, setPriority] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [loading, setLoading] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newSubject, setNewSubject] = useState('');
+  const [newBody, setNewBody] = useState('');
+  const [newPriority, setNewPriority] = useState('P3');
 
   useEffect(() => {
     setLoading(true);
@@ -35,11 +39,44 @@ export default function TicketList() {
     setRows(rows.filter((r) => r.id !== id));
   }
 
+  async function handleCreate(e) {
+    e.preventDefault();
+    const created = await api('/tickets', {
+      method: 'POST',
+      body: JSON.stringify({ subject: newSubject, body: newBody, priority: newPriority })
+    });
+    setRows([created, ...rows]);
+    setShowCreate(false);
+    setNewSubject('');
+    setNewBody('');
+  }
+
   const pageCount = Math.ceil(total / 20);
 
   return (
     <div className="ticket-list">
-      <h1>Tickets</h1>
+      {/* OLD: <h1>Tickets</h1> */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Tickets</h1>
+        <button onClick={() => setShowCreate(true)}>New Ticket</button>
+      </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreate} className="create-form" style={{ marginBottom: 20, padding: 10, border: '1px solid #ccc' }}>
+          <h3>Create New Ticket</h3>
+          <input required placeholder="Subject" value={newSubject} onChange={e => setNewSubject(e.target.value)} style={{ display: 'block', marginBottom: 10, width: '100%' }} />
+          <textarea required placeholder="Body" value={newBody} onChange={e => setNewBody(e.target.value)} style={{ display: 'block', marginBottom: 10, width: '100%', height: 80 }} />
+          <select value={newPriority} onChange={e => setNewPriority(e.target.value)} style={{ marginBottom: 10 }}>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+            <option value="P3">P3</option>
+          </select>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="submit">Submit</button>
+            <button type="button" onClick={() => setShowCreate(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
 
       <div className="filters">
         <input

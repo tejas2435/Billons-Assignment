@@ -8,7 +8,12 @@ const PAGE_SIZE = 20;
  * Supports free-text search on subject, filtering by status and priority,
  * and sorting by any column the UI exposes in its dropdown.
  */
+// OLD: export async function listTickets({ orgId, page = 1, search = '', status, priority, sortBy = 'created_at', order = 'desc' }) {
 export async function listTickets({ orgId, page = 1, search = '', status, priority, sortBy = 'created_at', order = 'desc' }) {
+  // NEW: Validate sortBy and order to prevent SQL injection
+  const validSortColumns = ['id', 'subject', 'status', 'priority', 'created_at', 'updated_at'];
+  const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+  const safeOrder = order.toLowerCase() === 'asc' ? 'asc' : 'desc';
   const where = ['t.org_id = ?'];
   const params = [orgId];
 
@@ -26,7 +31,8 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
   }
 
   const whereSql = where.join(' AND ');
-  const offset = page * PAGE_SIZE;
+  // OLD: const offset = page * PAGE_SIZE;
+  const offset = (page - 1) * PAGE_SIZE;
 
   const rows = await query(
     `SELECT t.id, t.subject, t.status, t.priority, t.created_at, t.updated_at,
@@ -35,7 +41,8 @@ export async function listTickets({ orgId, page = 1, search = '', status, priori
        LEFT JOIN users u ON u.id = t.assignee_id
        JOIN users r ON r.id = t.requester_id
       WHERE ${whereSql}
-      ORDER BY t.${sortBy} ${order}
+      /* OLD: ORDER BY t.${sortBy} ${order} */
+      ORDER BY t.${safeSortBy} ${safeOrder}
       LIMIT ? OFFSET ?`,
     [...params, PAGE_SIZE, offset]
   );
@@ -66,14 +73,21 @@ export async function getTicketById(id) {
   return rows[0] || null;
 }
 
-export async function listComments(ticketId) {
+// OLD: export async function listComments(ticketId) {
+export async function listComments(ticketId, userRole = 'requester') {
+  const where = ['c.ticket_id = ?'];
+  const params = [ticketId];
+  if (userRole === 'requester') {
+    where.push('c.is_internal = 0');
+  }
+
   return query(
     `SELECT c.id, c.body, c.is_internal, c.created_at, u.name AS author_name, u.role AS author_role
        FROM comments c
        JOIN users u ON u.id = c.author_id
-      WHERE c.ticket_id = ?
+      WHERE ${where.join(' AND ')}
       ORDER BY c.created_at ASC`,
-    [ticketId]
+    params
   );
 }
 
