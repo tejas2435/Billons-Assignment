@@ -8,6 +8,20 @@ exercise. It runs. Read the brief for what to do with it.
 
 ---
 
+## 🏆 Assignment Completion Status
+
+Both **Part 1** and **Part 2** of the assignment have been successfully completed!
+
+- **Part 1 (Fixes):** The Top 5 security and logic bugs (XSS, IDOR, Role verification, Missing UI, SQL injection/Pagination) have been implemented. Old code was left commented out for easy review.
+- **Part 2 (SLA Tracking):** The SLA breach computation and "Breached only" filter were successfully built directly into the SQL layer.
+
+Please see the following documentation for full details:
+1. [review.md](./review.md) - The ranked Part 1 codebase review.
+2. [decision_notes.md](./decision_notes.md) - Design decisions and edge cases addressed for the Part 2 SLA feature.
+3. [ai_log.md](./ai_log.md) - Detailed AI usage log.
+
+---
+
 ## Stack
 
 | Layer    | Technology                                            |
